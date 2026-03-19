@@ -52,10 +52,6 @@ norecursedirs = [
     "dev-data",
     "training-outputs",
 ]
-filterwarnings = [
-    "ignore::UserWarning:lightning.pytorch.trainer.connectors.data_connector",
-    "ignore:.*LeafSpec.*:FutureWarning",
-]
 
 [tool.pyright]
 include = ["src", "tests"]
