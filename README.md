@@ -1,6 +1,11 @@
 # AudioSet-Classification
 
-Python package for loading [AudioSet](https://research.google.com/audioset/) data and training multi-label classification models with PyTorch Lightning.
+Monorepo for [AudioSet](https://research.google.com/audioset/) data processing and multi-label classification with PyTorch Lightning.
+
+## Packages
+
+- **src/audioset_classification/** – Lightning training, classifier, data loading
+- **src/audioset_data/** – Data processing, conversion (TFRecord → .pt)
 
 ## Setup
 
@@ -8,26 +13,18 @@ Python package for loading [AudioSet](https://research.google.com/audioset/) dat
 uv sync
 ```
 
+Single environment: both `audioset` and `audioset-data` CLIs available.
+
 ## Usage
 
 ```bash
-# Inspect data (CSV + ontology)
+# Training
 audioset data inspect --data-dir /path/to/audioset
-
-# Train with synthetic embeddings (no feature download needed)
 audioset train --data-dir /path/to/audioset --synthetic --max-segments 100 --max-epochs 5
 
-# Train with real features (requires .pt embeddings in data_dir/features/)
-audioset train --data-dir /path/to/audioset --split balanced_train
+# Data processing
+audioset-data convert --tfrecord-dir /path/to/tfrecord --output-dir /path/to/output
 ```
-
-## Data layout
-
-Place AudioSet files in `data_dir/`:
-
-- `class_labels_indices.csv` – ontology (required)
-- `balanced_train_segments.csv`, `eval_segments.csv`, `unbalanced_train_segments.csv` – segment metadata
-- `features/XX/ytid_start_end.pt` – per-segment embeddings (torch.save; use `--synthetic` for testing without them)
 
 ## Development
 

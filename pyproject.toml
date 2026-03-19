@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "audioset-classification"
+name = "audioset"
 version = "0.1.0"
-description = "AudioSet data loading and classification with PyTorch Lightning"
+description = "AudioSet data processing and classification"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -17,6 +17,10 @@ dependencies = [
     "loguru>=0.7.3",
 ]
 
+[project.scripts]
+audioset = "audioset_classification.main:cli"
+audioset-data = "audioset_data.main:cli"
+
 [dependency-groups]
 dev = [
     "pyright>=1.1.402",
@@ -26,9 +30,6 @@ dev = [
     "ruff>=0.11.13",
 ]
 
-[project.scripts]
-audioset = "audioset_classification.main:cli"
-
 [tool.setuptools.packages.find]
 where = ["src"]
 
@@ -36,26 +37,16 @@ where = ["src"]
 package = true
 
 [tool.ruff.lint]
-extend-select = [
-    "I",
-    "TID252",
-]
+extend-select = ["I", "TID252"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
-norecursedirs = [
-    ".git",
-    ".venv",
-    "dev-data",
-    "training-outputs",
-]
+testpaths = ["tests"]
+norecursedirs = [".git", ".venv", "dev-data", "training-outputs"]
 
 [tool.pyright]
 include = ["src", "tests"]
-exclude = [
-    "dev-data",
-    "training-outputs",
-]
+exclude = ["dev-data", "training-outputs"]

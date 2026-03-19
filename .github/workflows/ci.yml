@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}/src
+      ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: "Set up Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "pyproject.toml"
+
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: Run lint
+        run: uv run ruff check --output-format=github
+
+      - run: echo "$PWD/.venv/bin" >> $GITHUB_PATH
+      - name: Run pyright
+        uses: jakebailey/pyright-action@v2
+        with:
+          version: PATH
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+
+      - name: Run tests
+        run: uv run pytest
+
+      - name: Minimize uv cache
+        run: uv cache prune --ci

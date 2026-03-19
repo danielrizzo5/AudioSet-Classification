@@ -18,4 +18,4 @@ test *FLAGS: format lint typecheck
     uv run pytest {{FLAGS}}
 
 test-coverage +REPORT='term':
-    just test --cov=src --cov-report={{REPORT}}
+    just test --cov=audioset_classification --cov=audioset_data --cov-report={{REPORT}}
