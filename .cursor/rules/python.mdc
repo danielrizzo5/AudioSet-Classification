@@ -1,0 +1,25 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# strictly obey these rules:
+- run commands from within the project root (AudioSet-Classification/)
+- use `uv run pytest` to run tests quickly during development
+- use uv for managing dependencies
+- prefer `uv run` over running python directly
+- when tests pass, use `just test` to do a final slow check
+- use absolute imports
+- place imports at the top of the file
+- use dependency injection
+- prefer docstrings over comments
+- format code using `just format`
+
+# testing
+- use pytest
+- prefer test functions to test classes in test files
+- use pytest fixtures as input data for things under test
+- put shared fixtures in conftest.py files
+- use tmp_path to make files and directories in fixtures
+- use mocks and patching to isolate the code under test
+- focus on the success case when making a new test file
