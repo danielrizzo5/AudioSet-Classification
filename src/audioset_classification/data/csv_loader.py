@@ -1,9 +1,10 @@
 """Parse AudioSet segment CSV files."""
 
-import io
 import re
 
 import pandas as pd
+
+COLUMNS = ["ytid", "start_seconds", "end_seconds", "positive_labels"]
 
 
 def load_segments_csv(
@@ -11,31 +12,29 @@ def load_segments_csv(
     split: str | None = None,
     max_segments: int | None = None,
 ) -> pd.DataFrame:
-    """
-    Load an AudioSet segments CSV (eval, balanced_train, or unbalanced_train).
+    """Load an AudioSet segments CSV (eval, balanced_train, or unbalanced_train).
+
+    The positive_labels field is unquoted and may itself contain commas, so
+    each line is split on the first three commas only.
 
     CSV format: YTID, start_seconds, end_seconds, positive_labels
-    Header lines start with #. The third header line defines columns.
     """
     with open(path, encoding="utf-8") as f:
         lines = f.readlines()
 
-    data_lines = []
+    rows = []
     for line in lines:
         line = line.strip()
         if not line or line.startswith("#"):
             continue
-        data_lines.append(line)
+        parts = line.split(",", 3)
+        if len(parts) == 4:
+            rows.append(parts)
 
-    if not data_lines:
-        return pd.DataFrame(
-            columns=["ytid", "start_seconds", "end_seconds", "positive_labels"]
-        )
+    if not rows:
+        return pd.DataFrame(columns=COLUMNS)
 
-    df = pd.read_csv(
-        io.StringIO("\n".join(data_lines)),
-        names=["ytid", "start_seconds", "end_seconds", "positive_labels"],
-    )
+    df = pd.DataFrame(rows, columns=COLUMNS)
 
     df["ytid"] = df["ytid"].astype(str).str.strip()
     df["start_seconds"] = pd.to_numeric(df["start_seconds"], errors="coerce")

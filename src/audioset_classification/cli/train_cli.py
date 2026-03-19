@@ -6,43 +6,42 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import TensorBoardLogger
 from loguru import logger
 
+from audioset_classification.cli.data_cli import (
+    FEATURES_DIR,
+    MANIFESTS_DIR,
+    NUM_CLASSES,
+)
 from audioset_classification.data.data_module import AudioSetDataModule
-from audioset_classification.data.ontology import load_ontology
 from audioset_classification.lightning.module import AudioSetLightningModule
 
 TRAINING_OUTPUTS = "training-outputs"
 
 
 def run_train(
-    data_dir: str = typer.Option(..., "--data-dir", "-d", help="Path to AudioSet data"),
-    split: str = typer.Option(
-        "balanced_train", help="Split: eval, balanced_train, unbalanced_train"
+    manifests_dir: str = typer.Option(
+        MANIFESTS_DIR,
+        "--manifests-dir",
+        help="Directory containing train/val/test.jsonl",
     ),
+    features_dir: str = typer.Option(
+        FEATURES_DIR, "--features-dir", help="Directory containing .pt feature files"
+    ),
+    num_classes: int = typer.Option(NUM_CLASSES, help="Number of output classes"),
     batch_size: int = typer.Option(32, help="Batch size"),
     max_epochs: int = typer.Option(10, help="Max training epochs"),
-    max_segments: int | None = typer.Option(
-        None, help="Limit segments for fast iteration"
-    ),
-    synthetic: bool = typer.Option(False, help="Use synthetic random embeddings"),
-    num_classes: int | None = typer.Option(
-        None, help="Number of classes (default: all 527)"
-    ),
+    num_workers: int = typer.Option(4, help="DataLoader worker count"),
+    synthetic: bool = typer.Option(False, help="Use synthetic zero tensors"),
 ) -> None:
-    """Run training."""
-    ontology_path = f"{data_dir}/class_labels_indices.csv"
-    ontology = load_ontology(ontology_path)
-    n_classes = num_classes if num_classes is not None else len(ontology)
-
+    """Run training from JSONL manifests and precomputed .pt features."""
     datamodule = AudioSetDataModule(
-        data_dir=data_dir,
-        ontology_path=ontology_path,
-        split=split,
+        manifests_dir=manifests_dir,
+        features_dir=features_dir,
+        num_classes=num_classes,
         batch_size=batch_size,
-        max_segments=max_segments,
-        num_classes=n_classes,
+        num_workers=num_workers,
         synthetic=synthetic,
     )
-    model = AudioSetLightningModule(num_classes=n_classes)
+    model = AudioSetLightningModule(num_classes=num_classes)
 
     trainer = L.Trainer(
         max_epochs=max_epochs,

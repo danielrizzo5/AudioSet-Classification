@@ -10,16 +10,17 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "torch>=2.4.0",
+    "torchaudio>=2.4.0",
     "lightning>=2.5.0",
     "tensorboard>=2.19.0",
     "typer>=0.16.0",
     "pandas>=2.3.0",
     "loguru>=0.7.3",
+    "yt-dlp>=2024.1.0",
 ]
 
 [project.scripts]
 audioset = "audioset_classification.main:cli"
-audioset-data = "audioset_data.main:cli"
 
 [dependency-groups]
 dev = [
