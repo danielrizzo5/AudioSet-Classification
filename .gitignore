@@ -1,0 +1,5 @@
+.venv/
+dev-data/
+training-outputs/
+lightning_logs/
+checkpoints/

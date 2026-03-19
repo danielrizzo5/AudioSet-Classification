@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "audioset"
+version = "0.1.0"
+description = "AudioSet data processing and classification"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "torch>=2.4.0",
+    "lightning>=2.5.0",
+    "tensorboard>=2.19.0",
+    "typer>=0.16.0",
+    "pandas>=2.3.0",
+    "loguru>=0.7.3",
+]
+
+[project.scripts]
+audioset = "audioset_classification.main:cli"
+audioset-data = "audioset_data.main:cli"
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.402",
+    "pytest>=8.4.0",
+    "pytest-cov>=6.2.1",
+    "pytest-loguru>=0.4.0",
+    "ruff>=0.11.13",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.uv]
+package = true
+
+[tool.ruff.lint]
+extend-select = ["I", "TID252"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+norecursedirs = [".git", ".venv", "dev-data", "training-outputs"]
+
+[tool.pyright]
+include = ["src", "tests"]
+exclude = ["dev-data", "training-outputs"]
