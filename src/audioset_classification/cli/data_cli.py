@@ -24,6 +24,8 @@ ONTOLOGY_CSV = os.path.join(CSV_DIR, "class_labels_indices.csv")
 
 NUM_CLASSES = 527
 
+DEFAULT_CLAP_MODEL = "laion/clap-htsat-fused"
+
 data_cli = typer.Typer(help="AudioSet data pipeline", no_args_is_help=True)
 
 
@@ -68,8 +70,16 @@ def manifest(
         "--val-fraction",
         help="Fraction of eval split used for val (remainder is test)",
     ),
+    seed: int = typer.Option(
+        42,
+        "--seed",
+        help="RNG seed for shuffling eval rows before val/test split",
+    ),
 ) -> None:
-    """Write JSONL manifests (train.jsonl, val.jsonl, test.jsonl) from downloaded audio."""
+    """Write JSONL manifests (train.jsonl, val.jsonl, test.jsonl) from downloaded audio.
+
+    Eval segments are shuffled (reproducibly via --seed) before splitting into val and test.
+    """
     ontology = load_ontology(ONTOLOGY_CSV)
 
     train_df = load_segments_csv(TRAIN_CSV, split="train")
@@ -95,6 +105,7 @@ def manifest(
             axis=1,
         )
     )
+    eval_df = eval_df.sample(frac=1, random_state=seed).reset_index(drop=True)
     split_idx = int(len(eval_df) * val_fraction)
     val_df = eval_df.iloc[:split_idx]
     test_df = eval_df.iloc[split_idx:]
@@ -125,11 +136,18 @@ def features(
     num_classes: int = typer.Option(
         NUM_CLASSES, "--num-classes", help="Number of output classes"
     ),
+    clap_model: str = typer.Option(
+        DEFAULT_CLAP_MODEL,
+        "--clap-model",
+        help="HuggingFace CLAP model id (must match training)",
+    ),
 ) -> None:
-    """Compute log-mel spectrogram features and save as .pt files."""
+    """Precompute CLAP processor inputs (input_features, is_longer) and save .pt files."""
     manifest_path = os.path.join(manifests_dir, f"{split}.jsonl")
-    logger.info(f"Computing features for '{split}' from {manifest_path}")
-    written = compute_features(manifest_path, features_dir, num_classes)
+    logger.info(f"Computing CLAP features for '{split}' from {manifest_path}")
+    written = compute_features(
+        manifest_path, features_dir, num_classes, clap_model_id=clap_model
+    )
     logger.info(f"Wrote {written} feature files -> {features_dir}")
 
 

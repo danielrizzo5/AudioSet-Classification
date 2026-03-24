@@ -85,7 +85,7 @@ def mock_manifests_dir(tmp_path, mock_manifest_entries):
 
 @pytest.fixture
 def mock_features_dir(tmp_path, mock_manifest_entries):
-    """Write .pt feature files for all manifest entries."""
+    """Write CLAP-shaped .pt feature files for all manifest entries."""
     features_dir = tmp_path / "features"
     features_dir.mkdir()
     for entry in mock_manifest_entries:
@@ -93,6 +93,10 @@ def mock_features_dir(tmp_path, mock_manifest_entries):
         label_vec = torch.zeros(3, dtype=torch.float32)
         for idx in entry["label_ids"]:
             label_vec[idx] = 1.0
-        data = {"x": torch.randn(128, 100, dtype=torch.float32), "label_ids": label_vec}
+        data = {
+            "input_features": torch.randn(4, 48, 64, dtype=torch.float32),
+            "is_longer": torch.zeros(1, 1, dtype=torch.bool),
+            "label_ids": label_vec,
+        }
         torch.save(data, features_dir / f"{stem}.pt")
     return features_dir
