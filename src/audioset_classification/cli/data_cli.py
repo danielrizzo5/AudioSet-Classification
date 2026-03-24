@@ -3,9 +3,11 @@
 import os
 import shutil
 
+import torch
 import typer
 from loguru import logger
 
+from audioset_classification.data.clap_embeddings import compute_clap_embeddings
 from audioset_classification.data.csv_loader import load_segments_csv
 from audioset_classification.data.download import download_clips
 from audioset_classification.data.features import compute_features
@@ -17,6 +19,7 @@ CSV_DIR = os.path.join(DEV_DATA, "audioset-csv")
 AUDIO_DIR = os.path.join(DEV_DATA, "audio")
 MANIFESTS_DIR = os.path.join(DEV_DATA, "manifests")
 FEATURES_DIR = os.path.join(DEV_DATA, "features")
+EMBEDDINGS_DIR = os.path.join(DEV_DATA, "embeddings", "clap")
 
 TRAIN_CSV = os.path.join(CSV_DIR, "balanced_train_segments.csv")
 EVAL_CSV = os.path.join(CSV_DIR, "eval_segments.csv")
@@ -152,6 +155,71 @@ def features(
         f"{n_with_pt} manifest row(s) have .pt under {features_dir} "
         "(see warnings if any clips were skipped)"
     )
+
+
+def _torch_device(spec: str) -> torch.device:
+    """Resolve ``auto`` to CUDA when available, else CPU."""
+    if spec == "auto":
+        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    return torch.device(spec)
+
+
+@data_cli.command()
+def embeddings(
+    split: str = typer.Option(
+        "train",
+        "--split",
+        "-s",
+        help="Split: train, val, or test",
+    ),
+    manifests_dir: str = typer.Option(
+        MANIFESTS_DIR, "--manifests-dir", help="Manifests directory"
+    ),
+    embeddings_dir: str = typer.Option(
+        EMBEDDINGS_DIR,
+        "--embeddings-dir",
+        help="Output directory for CLAP embedding .npz files",
+    ),
+    features_dir: str = typer.Option(
+        FEATURES_DIR,
+        "--features-dir",
+        help="Directory of precomputed .pt from ``audioset data features``",
+    ),
+    clap_model: str = typer.Option(
+        DEFAULT_CLAP_MODEL,
+        "--clap-model",
+        help="HuggingFace CLAP model id (must match training)",
+    ),
+    batch_size: int = typer.Option(8, "--batch-size", "-b", help="Encoder batch size"),
+    device: str = typer.Option(
+        "auto",
+        "--device",
+        help="torch device: auto, cpu, or cuda",
+    ),
+) -> None:
+    """Save CLAP audio pooler embeddings (.npz) from precomputed feature .pt files.
+
+    Run ``audioset data features`` for the same split first. Skips manifest rows
+    with no matching .pt under ``--features-dir``.
+
+    ``representative_label_id`` is the first ``label_id`` in manifest order
+    for each row (used for hierarchy coloring in analysis).
+    """
+    manifest_path = os.path.join(manifests_dir, f"{split}.jsonl")
+    os.makedirs(embeddings_dir, exist_ok=True)
+    out_npz = os.path.join(embeddings_dir, f"{split}.npz")
+    logger.info(
+        f"Computing CLAP embeddings for '{split}' from {features_dir} -> {out_npz}"
+    )
+    n = compute_clap_embeddings(
+        manifest_path,
+        features_dir,
+        out_npz,
+        clap_model_id=clap_model,
+        batch_size=batch_size,
+        target_device=_torch_device(device),
+    )
+    logger.info(f"Wrote {n} embedding row(s) to {out_npz}")
 
 
 @data_cli.command()

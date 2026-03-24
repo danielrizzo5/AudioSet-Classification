@@ -2,12 +2,14 @@
 
 import typer
 
+from audioset_classification.cli.analysis_cli import analysis_cli
 from audioset_classification.cli.data_cli import data_cli
 from audioset_classification.cli.train_cli import run_train
 from audioset_classification.utils.logging import configure_logger
 
 cli = typer.Typer(no_args_is_help=True, pretty_exceptions_enable=False)
 cli.add_typer(data_cli, name="data")
+cli.add_typer(analysis_cli, name="analysis")
 cli.command(name="train")(run_train)
 
 

@@ -67,6 +67,7 @@ def test_audioset_lightning_module_forward():
     model = AudioSetLightningModule(
         clap_model_id=CLAP_MODEL_ID,
         num_classes=10,
+        max_epochs=10,
     )
     b = 2
     feats = torch.randn(b, 4, 50, 64)
@@ -84,6 +85,7 @@ def test_audioset_lightning_module_training_step():
     model = AudioSetLightningModule(
         clap_model_id=CLAP_MODEL_ID,
         num_classes=3,
+        max_epochs=10,
     )
     ds = _ClapBatchDataset(4, num_classes=3)
     dataloader = DataLoader(
