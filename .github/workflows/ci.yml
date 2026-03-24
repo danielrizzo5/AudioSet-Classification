@@ -25,10 +25,11 @@ jobs:
         with:
           enable-cache: true
 
+      # Pinned (not python-version-file) so torch/torchcodec wheels match ubuntu-latest x86_64 reliably.
       - name: "Set up Python"
         uses: actions/setup-python@v5
         with:
-          python-version-file: "pyproject.toml"
+          python-version: "3.12"
 
       - name: Install dependencies
         run: uv sync --all-extras --dev

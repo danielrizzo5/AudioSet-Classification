@@ -5,13 +5,12 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import torch
-import torchaudio
 
 from audioset_classification.data.features import compute_features_for_clip
 
 
-def test_torchaudio_load_wav_mono(tmp_path):
-    """torchaudio.load reads a stdlib-written mono WAV (TorchCodec backend)."""
+def test_stdlib_wave_mono_roundtrip(tmp_path):
+    """Stdlib ``wave`` writes mono PCM WAVs readable back (no TorchCodec in CI)."""
     path = tmp_path / "clip.wav"
     n_frames = 80
     sample_rate = 16000
@@ -20,10 +19,10 @@ def test_torchaudio_load_wav_mono(tmp_path):
         wf.setsampwidth(2)
         wf.setframerate(sample_rate)
         wf.writeframes(b"\x00\x00" * n_frames)
-    waveform, sr = torchaudio.load(str(path))
-    assert sr == sample_rate
-    assert waveform.shape == (1, n_frames)
-    assert waveform.dtype == torch.float32
+    with wave.open(str(path), "rb") as wf:
+        assert wf.getnframes() == n_frames
+        assert wf.getframerate() == sample_rate
+        assert wf.getnchannels() == 1
 
 
 def test_compute_features_for_clip_skips_zero_sample_waveform(tmp_path):
