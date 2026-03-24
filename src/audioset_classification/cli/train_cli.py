@@ -1,5 +1,7 @@
 """CLI for training."""
 
+from typing import Optional
+
 import lightning as L
 import typer
 from lightning.pytorch.callbacks import BackboneFinetuning, ModelCheckpoint
@@ -39,8 +41,21 @@ def run_train(
     synthetic: bool = typer.Option(
         False, help="Use synthetic random CLAP-like tensors"
     ),
+    head_only: bool = typer.Option(
+        False,
+        "--head-only",
+        help="Train the projection head only; do not register BackboneFinetuning (backbone stays out of the optimizer).",
+    ),
+    unfreeze_backbone_at_epoch: Optional[int] = typer.Option(
+        None,
+        "--unfreeze-backbone-at-epoch",
+        help=(
+            "Epoch at which BackboneFinetuning unfreezes the CLAP encoder (Lightning epoch index). "
+            "Default when omitted: floor(0.9 * max_epochs), at least 1. Ignored with --head-only."
+        ),
+    ),
 ) -> None:
-    """Train CLAP backbone + projection head; backbone unfreezes in the last ~10% of epochs."""
+    """Train CLAP encoder + projection head; optional staged unfreeze via BackboneFinetuning."""
     datamodule = AudioSetDataModule(
         manifests_dir=manifests_dir,
         features_dir=features_dir,
@@ -52,15 +67,37 @@ def run_train(
     model = AudioSetLightningModule(
         clap_model_id=clap_model,
         num_classes=num_classes,
+        max_epochs=max_epochs,
     )
 
-    unfreeze_at = max(1, int(0.9 * max_epochs))
-    finetune = BackboneFinetuning(
-        unfreeze_backbone_at_epoch=unfreeze_at,
-        lambda_func=lambda _epoch: 1.0,
-        backbone_initial_ratio_lr=0.1,
-        train_bn=True,
-    )
+    callbacks: list[L.Callback] = [
+        ModelCheckpoint(
+            monitor="val/loss",
+            mode="min",
+            save_top_k=3,
+            save_last=True,
+            filename="epoch-{epoch:04d}-val_loss-{val/loss:.4f}",
+        ),
+    ]
+    if head_only:
+        logger.info("Starting training (head only; CLAP backbone not in optimizer)")
+    else:
+        unfreeze_at = (
+            unfreeze_backbone_at_epoch
+            if unfreeze_backbone_at_epoch is not None
+            else max(1, int(0.9 * max_epochs))
+        )
+        callbacks.append(
+            BackboneFinetuning(
+                unfreeze_backbone_at_epoch=unfreeze_at,
+                lambda_func=lambda _epoch: 1.0,
+                backbone_initial_ratio_lr=0.1,
+                train_bn=True,
+            )
+        )
+        logger.info(
+            f"Starting training (backbone frozen until epoch {unfreeze_at} of {max_epochs})"
+        )
 
     trainer = L.Trainer(
         max_epochs=max_epochs,
@@ -68,19 +105,7 @@ def run_train(
         devices=1,
         default_root_dir=TRAINING_OUTPUTS,
         logger=TensorBoardLogger(save_dir=TRAINING_OUTPUTS),
-        callbacks=[
-            ModelCheckpoint(
-                monitor="val/loss",
-                mode="min",
-                save_top_k=3,
-                save_last=True,
-                filename="epoch-{epoch:04d}-val_loss-{val/loss:.4f}",
-            ),
-            finetune,
-        ],
-    )
-    logger.info(
-        f"Starting training (backbone frozen until epoch {unfreeze_at} of {max_epochs})"
+        callbacks=callbacks,
     )
     trainer.fit(model, datamodule=datamodule)
     logger.info("Training complete")

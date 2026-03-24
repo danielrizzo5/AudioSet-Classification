@@ -9,6 +9,7 @@ description = "AudioSet data processing and classification"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "typing-extensions>=4.8.0",
     "torch>=2.4.0",
     "torchaudio>=2.4.0",
     "transformers>=4.40.0",
@@ -25,6 +26,10 @@ dependencies = [
 audioset = "audioset_classification.main:cli"
 
 [dependency-groups]
+analysis = [
+    "umap-learn>=0.5.6",
+    "matplotlib>=3.8.0",
+]
 dev = [
     "pyright>=1.1.402",
     "pytest>=8.4.0",
