@@ -8,7 +8,7 @@
 uv sync
 ```
 
-`uv sync` pulls **torch**, **torchaudio**, and **torchcodec** (torchaudio loads audio via TorchCodec).
+`uv sync` pulls **torch**, **torchaudio**, and **torchcodec** (`torchaudio.load` decodes via TorchCodec).
 
 Place AudioSet CSVs under `dev-data/audioset-csv/`:
 

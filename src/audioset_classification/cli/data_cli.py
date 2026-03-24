@@ -145,10 +145,13 @@ def features(
     """Precompute CLAP processor inputs (input_features, is_longer) and save .pt files."""
     manifest_path = os.path.join(manifests_dir, f"{split}.jsonl")
     logger.info(f"Computing CLAP features for '{split}' from {manifest_path}")
-    written = compute_features(
+    n_with_pt = compute_features(
         manifest_path, features_dir, num_classes, clap_model_id=clap_model
     )
-    logger.info(f"Wrote {written} feature files -> {features_dir}")
+    logger.info(
+        f"{n_with_pt} manifest row(s) have .pt under {features_dir} "
+        "(see warnings if any clips were skipped)"
+    )
 
 
 @data_cli.command()
