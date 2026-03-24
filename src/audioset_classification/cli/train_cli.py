@@ -133,6 +133,7 @@ def run_train(
         default_root_dir=TRAINING_OUTPUTS,
         logger=TensorBoardLogger(save_dir=TRAINING_OUTPUTS, name=""),
         callbacks=callbacks,
+        log_every_n_steps=10,
     )
     trainer.fit(model, datamodule=datamodule)
     logger.info("Training complete")
