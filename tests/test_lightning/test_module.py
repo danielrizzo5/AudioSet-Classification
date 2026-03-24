@@ -1,6 +1,14 @@
-"""Tests for LightningModule."""
+"""Tests for LightningModule.
+
+``ClapModel.from_pretrained`` is patched so CI does not download multi-GB weights
+from Hugging Face (rate limits, timeouts, memory).
+"""
+
+from types import SimpleNamespace
+from unittest.mock import patch
 
 import torch
+import torch.nn as nn
 from lightning.pytorch import Trainer
 from lightning.pytorch.callbacks import BackboneFinetuning
 from torch.utils.data import DataLoader, Dataset
@@ -9,6 +17,26 @@ from audioset_classification.data.collate import collate_clap_batch
 from audioset_classification.lightning.module import AudioSetLightningModule
 
 CLAP_MODEL_ID = "laion/clap-htsat-fused"
+_FAKE_CLAP_HIDDEN = 512
+
+
+class _FakeClapAudioModel(nn.Module):
+    """Minimal stand-in for ``ClapModel.audio_model`` (no HuggingFace download)."""
+
+    def forward(self, input_features, is_longer, return_dict=True):
+        b = input_features.size(0)
+        return SimpleNamespace(
+            pooler_output=input_features.new_zeros(b, _FAKE_CLAP_HIDDEN),
+        )
+
+
+def _stub_clap_from_pretrained(_model_id: str, **_kwargs):
+    return SimpleNamespace(
+        config=SimpleNamespace(
+            audio_config=SimpleNamespace(hidden_size=_FAKE_CLAP_HIDDEN),
+        ),
+        audio_model=_FakeClapAudioModel(),
+    )
 
 
 class _ClapBatchDataset(Dataset):
@@ -30,6 +58,10 @@ class _ClapBatchDataset(Dataset):
         return feats, is_longer, y
 
 
+@patch(
+    "audioset_classification.lightning.module.ClapModel.from_pretrained",
+    _stub_clap_from_pretrained,
+)
 def test_audioset_lightning_module_forward():
     """Forward on (input_features, is_longer) yields logits [B, num_classes]."""
     model = AudioSetLightningModule(
@@ -43,6 +75,10 @@ def test_audioset_lightning_module_forward():
     assert out.shape == (b, 10)
 
 
+@patch(
+    "audioset_classification.lightning.module.ClapModel.from_pretrained",
+    _stub_clap_from_pretrained,
+)
 def test_audioset_lightning_module_training_step():
     """Training step runs under Trainer with BackboneFinetuning."""
     model = AudioSetLightningModule(
