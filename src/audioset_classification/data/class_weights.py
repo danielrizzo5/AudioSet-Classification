@@ -24,22 +24,17 @@ def count_positive_labels_per_class(manifest_path: str, num_classes: int) -> np.
     return _pos_counts_from_entries(read_manifest(manifest_path), num_classes)
 
 
-def bce_pos_weight_from_train_manifest(
-    manifest_path: str,
-    num_classes: int,
-    alpha: float,
+def bce_pos_weight_from_entries(
+    entries: list[dict], num_classes: int, alpha: float
 ) -> torch.Tensor:
-    """``pos_weight`` for ``BCEWithLogitsLoss``: ``((N - n_c) / n_c) ** alpha`` per class.
+    """``pos_weight`` from manifest rows: ``((N - n_c) / n_c) ** alpha`` per class.
 
-    ``N`` is the number of manifest rows; ``n_c`` is the positive count for class ``c``.
+    ``N`` is ``len(entries)``; ``n_c`` is the positive count for class ``c``.
     Requires ``n_c > 0`` for every class.
     """
-    if not os.path.isfile(manifest_path):
-        raise FileNotFoundError(manifest_path)
-    entries = read_manifest(manifest_path)
     n_clips = len(entries)
     if n_clips == 0:
-        raise ValueError(f"Train manifest is empty: {manifest_path!r}")
+        raise ValueError("No manifest entries for BCE pos_weight")
     pos_counts = _pos_counts_from_entries(entries, num_classes)
     zero = np.where(pos_counts <= 0)[0]
     if len(zero) > 0:
@@ -53,3 +48,17 @@ def bce_pos_weight_from_train_manifest(
     ratio = neg / pos
     weights = np.power(ratio, alpha)
     return torch.from_numpy(weights).to(dtype=torch.float32)
+
+
+def bce_pos_weight_from_train_manifest(
+    manifest_path: str,
+    num_classes: int,
+    alpha: float,
+) -> torch.Tensor:
+    """Same as :func:`bce_pos_weight_from_entries` after loading ``manifest_path``."""
+    if not os.path.isfile(manifest_path):
+        raise FileNotFoundError(manifest_path)
+    entries = read_manifest(manifest_path)
+    if not entries:
+        raise ValueError(f"Train manifest is empty: {manifest_path!r}")
+    return bce_pos_weight_from_entries(entries, num_classes, alpha)

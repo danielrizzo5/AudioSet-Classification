@@ -15,10 +15,10 @@ from audioset_classification.cli.data_cli import (
     MANIFESTS_DIR,
     NUM_CLASSES,
 )
-from audioset_classification.data.class_weights import (
-    bce_pos_weight_from_train_manifest,
-)
+from audioset_classification.data.class_weights import bce_pos_weight_from_entries
 from audioset_classification.data.data_module import AudioSetDataModule
+from audioset_classification.data.dataset import manifest_entries_with_features
+from audioset_classification.data.manifest import read_manifest
 from audioset_classification.lightning.module import AudioSetLightningModule
 
 TRAINING_OUTPUTS = "training-outputs"
@@ -84,8 +84,11 @@ def run_train(
     bce_pw = None
     if use_bce_pos_weight:
         train_manifest = os.path.join(manifests_dir, "train.jsonl")
-        bce_pw = bce_pos_weight_from_train_manifest(
-            train_manifest, num_classes, bce_pos_weight_alpha
+        train_entries = manifest_entries_with_features(
+            read_manifest(train_manifest), features_dir
+        )
+        bce_pw = bce_pos_weight_from_entries(
+            train_entries, num_classes, bce_pos_weight_alpha
         )
     model = AudioSetLightningModule(
         clap_model_id=clap_model,
@@ -128,7 +131,7 @@ def run_train(
         accelerator="auto",
         devices=1,
         default_root_dir=TRAINING_OUTPUTS,
-        logger=TensorBoardLogger(save_dir=TRAINING_OUTPUTS),
+        logger=TensorBoardLogger(save_dir=TRAINING_OUTPUTS, name=""),
         callbacks=callbacks,
     )
     trainer.fit(model, datamodule=datamodule)
