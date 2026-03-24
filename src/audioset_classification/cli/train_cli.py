@@ -1,5 +1,6 @@
 """CLI for training."""
 
+import os
 from typing import Optional
 
 import lightning as L
@@ -13,6 +14,9 @@ from audioset_classification.cli.data_cli import (
     FEATURES_DIR,
     MANIFESTS_DIR,
     NUM_CLASSES,
+)
+from audioset_classification.data.class_weights import (
+    bce_pos_weight_from_train_manifest,
 )
 from audioset_classification.data.data_module import AudioSetDataModule
 from audioset_classification.lightning.module import AudioSetLightningModule
@@ -54,6 +58,19 @@ def run_train(
             "Default when omitted: floor(0.9 * max_epochs), at least 1. Ignored with --head-only."
         ),
     ),
+    use_bce_pos_weight: bool = typer.Option(
+        True,
+        "--bce-pos-weight/--no-bce-pos-weight",
+        help=(
+            "If set, BCE uses train-manifest ``pos_weight`` "
+            "``((N-n_c)/n_c)**alpha`` per class (requires every class in train)."
+        ),
+    ),
+    bce_pos_weight_alpha: float = typer.Option(
+        0.5,
+        "--bce-pos-weight-alpha",
+        help="Tempering exponent for BCE pos_weight (0 => all ones).",
+    ),
 ) -> None:
     """Train CLAP encoder + projection head; optional staged unfreeze via BackboneFinetuning."""
     datamodule = AudioSetDataModule(
@@ -64,10 +81,17 @@ def run_train(
         num_workers=num_workers,
         synthetic=synthetic,
     )
+    bce_pw = None
+    if use_bce_pos_weight:
+        train_manifest = os.path.join(manifests_dir, "train.jsonl")
+        bce_pw = bce_pos_weight_from_train_manifest(
+            train_manifest, num_classes, bce_pos_weight_alpha
+        )
     model = AudioSetLightningModule(
         clap_model_id=clap_model,
         num_classes=num_classes,
         max_epochs=max_epochs,
+        bce_pos_weight=bce_pw,
     )
 
     callbacks: list[L.Callback] = [
