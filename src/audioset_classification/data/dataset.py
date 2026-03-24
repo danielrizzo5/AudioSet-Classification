@@ -3,9 +3,22 @@
 import os
 
 import torch
+from loguru import logger
 from torch.utils.data import Dataset
 
+from audioset_classification.data.features import feature_path
 from audioset_classification.data.manifest import read_manifest
+
+
+def manifest_entries_with_features(
+    entries: list[dict], features_dir: str
+) -> list[dict]:
+    """Manifest rows whose ``feature_path(audio_path, features_dir)`` exists."""
+    return [
+        e
+        for e in entries
+        if os.path.isfile(feature_path(e["audio_path"], features_dir))
+    ]
 
 
 class AudioSetDataset(Dataset):
@@ -25,7 +38,21 @@ class AudioSetDataset(Dataset):
         synthetic_mels: int = 64,
         synthetic_channels: int = 4,
     ):
-        self.entries = read_manifest(manifest_path)
+        raw_entries = read_manifest(manifest_path)
+        if synthetic:
+            self.entries = raw_entries
+        else:
+            self.entries = manifest_entries_with_features(raw_entries, features_dir)
+            n_skip = len(raw_entries) - len(self.entries)
+            if n_skip:
+                logger.warning(
+                    f"Skipped {n_skip} manifest row(s) missing .pt under {features_dir!r} "
+                    f"({manifest_path!r})"
+                )
+            if not self.entries:
+                raise ValueError(
+                    f"No .pt features for any row in {manifest_path!r} under {features_dir!r}"
+                )
         self.features_dir = features_dir
         self.num_classes = num_classes
         self.synthetic = synthetic
@@ -53,8 +80,7 @@ class AudioSetDataset(Dataset):
                     labels[label_id] = 1.0
             return input_features, is_longer, labels
 
-        stem = os.path.splitext(os.path.basename(entry["audio_path"]))[0]
-        pt_path = os.path.join(self.features_dir, f"{stem}.pt")
+        pt_path = feature_path(entry["audio_path"], self.features_dir)
         data: dict[str, torch.Tensor] = torch.load(
             pt_path, map_location="cpu", weights_only=True
         )

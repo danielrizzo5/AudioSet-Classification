@@ -7,9 +7,11 @@ import pytest
 import torch
 
 from audioset_classification.data.class_weights import (
+    bce_pos_weight_from_entries,
     bce_pos_weight_from_train_manifest,
     count_positive_labels_per_class,
 )
+from audioset_classification.data.manifest import read_manifest
 
 
 def test_count_positive_labels_per_class(tmp_path):
@@ -22,6 +24,21 @@ def test_count_positive_labels_per_class(tmp_path):
     m.write_text("\n".join(json.dumps(x) for x in lines) + "\n", encoding="utf-8")
     c = count_positive_labels_per_class(str(m), num_classes=2)
     np.testing.assert_array_equal(c, np.array([2, 2], dtype=np.int64))
+
+
+def test_bce_pos_weight_from_entries_matches_file(tmp_path):
+    """In-memory entries match loading the same manifest from disk."""
+    m = tmp_path / "train.jsonl"
+    lines = [
+        {"label_ids": [0]},
+        {"label_ids": [0]},
+        {"label_ids": [1]},
+    ]
+    m.write_text("\n".join(json.dumps(x) for x in lines) + "\n", encoding="utf-8")
+    entries = read_manifest(str(m))
+    w_file = bce_pos_weight_from_train_manifest(str(m), num_classes=2, alpha=0.5)
+    w_ent = bce_pos_weight_from_entries(entries, num_classes=2, alpha=0.5)
+    torch.testing.assert_close(w_file, w_ent)
 
 
 def test_bce_pos_weight_formula(tmp_path):
