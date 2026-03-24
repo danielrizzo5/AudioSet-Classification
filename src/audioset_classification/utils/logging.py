@@ -1,8 +1,4 @@
-"""Logging utilities for the application.
-
-This module provides utilities for configuring and managing logging
-throughout the application, centralizing logging configuration.
-"""
+"""Logging utilities for the application."""
 
 import sys
 
@@ -10,17 +6,13 @@ from loguru import logger
 
 
 def configure_logger(level: str = "INFO") -> None:
-    """Configure Loguru and intercept all standard logging.
-
-    Args:
-        level: The log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-    """
+    """Configure Loguru with stdout (non-errors) and stderr (errors) sinks."""
     logger.remove()
 
-    def not_error(record):
+    def not_error(record) -> bool:  # noqa: ANN001
         return record["level"].no < logger.level("ERROR").no
 
-    format = (
+    fmt = (
         "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
         "<level>{level}</level> | "
         "<cyan>{name}:{function}:{line}</cyan> - "
@@ -30,10 +22,9 @@ def configure_logger(level: str = "INFO") -> None:
     logger.add(
         sys.stdout,
         level=level.upper(),
-        format=format,
+        format=fmt,
         diagnose=False,
         backtrace=True,
-        enqueue=True,  # Thread-safe logging
         catch=True,
         filter=not_error,
         colorize=True,
@@ -42,10 +33,9 @@ def configure_logger(level: str = "INFO") -> None:
     logger.add(
         sys.stderr,
         level="ERROR",
-        format=format,
+        format=fmt,
         diagnose=False,
         backtrace=True,
-        enqueue=True,  # Thread-safe logging
         catch=True,
         colorize=True,
     )

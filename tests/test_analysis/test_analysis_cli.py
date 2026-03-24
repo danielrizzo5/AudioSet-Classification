@@ -1,5 +1,6 @@
 """Tests for analysis CLI."""
 
+import re
 from pathlib import Path
 from unittest.mock import patch
 
@@ -10,11 +11,16 @@ from audioset_classification.main import cli
 runner = CliRunner()
 
 
+def _strip_ansi(s: str) -> str:
+    """Remove ANSI escape codes so assertions work regardless of terminal color settings."""
+    return re.sub(r"\x1b\[[0-9;]*[a-zA-Z]", "", s)
+
+
 def test_umap_help_lists_all_splits():
     """UMAP command help mentions all-splits."""
     result = runner.invoke(cli, ["analysis", "umap", "--help"])
     assert result.exit_code == 0
-    assert "--all-splits" in result.stdout
+    assert "--all-splits" in _strip_ansi(result.stdout)
 
 
 def test_umap_all_splits_calls_combined_once(tmp_path: Path):
