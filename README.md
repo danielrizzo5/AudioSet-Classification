@@ -1,6 +1,10 @@
 # AudioSet-Classification
 
-[AudioSet](https://research.google.com/audioset/) data prep and multi-label classification with **HuggingFace CLAP**, PyTorch, and Lightning. Offline feature caches use `ClapFeatureExtractor` (48 kHz); training uses `ClapModel`’s audio encoder as a frozen-then-unfrozen backbone plus a projection head (`BackboneFinetuning` unfreezes the encoder in the last ~10% of epochs).
+[AudioSet](https://research.google.com/audioset/) is a large-scale dataset of sound events: millions of short clips labeled with hundreds of ontology-backed categories, widely used for audio understanding benchmarks.
+
+This project uses it to get hands-on with **CLAP** embeddings—how they cluster, how they behave under a classifier head, and how the full pipeline fits together. The same pattern (precomputed encoder features → task head → optional finetuning) is a template we can reuse for other multimodal encoders later (e.g. **CLIP**-style vision–language models).
+
+The codebase covers data prep and multi-label classification with **HuggingFace CLAP**, PyTorch, and Lightning. Offline feature caches use `ClapFeatureExtractor` (48 kHz); training uses `ClapModel`’s audio encoder as a frozen-then-unfrozen backbone plus a projection head (`BackboneFinetuning` unfreezes the encoder in the last ~10% of epochs).
 
 ## Setup
 
@@ -10,12 +14,7 @@ uv sync
 
 `uv sync` pulls **torch**, **torchaudio**, and **torchcodec** (`torchaudio.load` decodes via TorchCodec).
 
-Place AudioSet CSVs under `dev-data/audioset-csv/`:
-
-- `balanced_train_segments.csv`
-- `eval_segments.csv`
-- `class_labels_indices.csv`
-- `ontology.json` (hierarchy for analysis plots — e.g. `curl -L -o dev-data/audioset-csv/ontology.json https://raw.githubusercontent.com/audioset/ontology/master/ontology.json`)
+Download the segment CSVs and `class_labels_indices.csv` from the [AudioSet download page](https://research.google.com/audioset/download.html), and add [`ontology.json`](https://raw.githubusercontent.com/audioset/ontology/master/ontology.json) for hierarchy-aware analysis plots. Put them under `dev-data/audioset-csv/` as `balanced_train_segments.csv`, `eval_segments.csv`, `class_labels_indices.csv`, and `ontology.json`.
 
 ## Data and training pipeline
 
@@ -27,7 +26,7 @@ Use the same `--clap-model` for `data features` and `train` (default: `laion/cla
    uv run audioset data inspect
    ```
 
-2. **Download audio** (requires [ffmpeg](https://ffmpeg.org/) on `PATH`, e.g. `brew install ffmpeg`)
+2. **Download audio** (requires [ffmpeg](https://ffmpeg.org/) on `PATH`, e.g. `brew install ffmpeg`). Downloading the full dataset can take 5+ hours and may require multiple runs due to throttling.
 
    ```bash
    uv run audioset data download --split train
@@ -36,7 +35,7 @@ Use the same `--clap-model` for `data features` and `train` (default: `laion/cla
 
    Optional: `--max-clips N` for a small run.
 
-3. **Write JSONL manifests** (only clips with existing WAVs are included). Eval rows are shuffled (default `--seed 42`) before splitting into `val.jsonl` / `test.jsonl` via `--val-fraction`.
+3. **Write JSONL manifests** (only clips with existing WAVs are included). Eval rows are shuffled before splitting into `val.jsonl` / `test.jsonl` via `--val-fraction`.
 
    ```bash
    uv run audioset data manifest
@@ -63,12 +62,14 @@ Use the same `--clap-model` for `data features` and `train` (default: `laion/cla
    ```bash
    uv run audioset data embeddings --split train --clap-model laion/clap-htsat-fused
    uv run audioset analysis umap --embeddings dev-data/embeddings/clap/train.npz
-   # Or combine train/val/test into one UMAP + one set of tier plots (default dir):
    uv run audioset analysis umap --all-splits
-   # Optional: ``--combined-stem my_run`` names cache/PNGs ``my_run_tier_*.png``.
    ```
 
-   Writes `dev-data/embeddings/clap/{split}.npz` and a cached 2D UMAP array under `dev-data/analysis/umap/` (filename includes `n_neighbors`, `min_dist`, and row count) plus tier PNGs. A single `--embeddings` run uses that file’s stem (e.g. `train_tier_*.png`). **`--all-splits`** stacks every present `train` / `val` / `test` npz, fits **one** UMAP, and writes **`all_splits_tier_*.png`** (or `--combined-stem`). Defaults match the observer-style setup: `n_neighbors=200`, `min_dist=0.002`, seed **42**, scatter `s=8`, `alpha=0.8`, **tab20** colors (with blends after 20 categories). Override via `audioset analysis umap --help` (`--seed` is an alias for `--random-state`). Each PNG only changes tier-based colors. `representative_label_id` in the npz is the **first** manifest `label_id` for hierarchy coloring. With `--all-splits`, any missing split file is skipped with a warning; if none are found, the command exits with an error.
+   This writes `dev-data/embeddings/clap/{split}.npz`, caches 2D UMAP coordinates under `dev-data/analysis/umap/`, and saves tier-colored PNGs next to that cache. `--all-splits` loads every available train/val/test npz, fits a single UMAP, and emits one combined figure set. See `audioset analysis umap --help` for paths, naming, and tuning.
+
+Example UMAP showing AudioSet ontology labels clustering together in CLAP space (tier 0, combined splits; same idea as `dev-data/analysis/umap/all_splits_tier_0.png` when you run locally):
+
+![UMAP scatter by ontology tier 0 category](./docs/images/umap_all_splits_tier_0.png)
 
 Checkpoints and TensorBoard logs go under `training-outputs/` (git-ignored). The first train run may download CLAP weights from the Hugging Face Hub.
 
